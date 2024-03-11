@@ -13,6 +13,7 @@ import (
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Health check")
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_api.MessagingApiAPI, err error) {
