@@ -20,6 +20,20 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 	for _, event := range req.Events {
 		log.Printf("Event: %v", event)
 		switch e := event.(type) {
+		case webhook.FollowEvent:
+			if _, err = bot.ReplyMessage(
+				&messaging_api.ReplyMessageRequest{
+					ReplyToken: e.ReplyToken,
+					Messages: []messaging_api.MessageInterface{
+						&messaging_api.TextMessage{
+							Text: "友達追加ありがとう！",
+						},
+					},
+				},
+			); err != nil {
+				log.Println(err)
+				return
+			}
 		case webhook.MessageEvent:
 			switch message := e.Message.(type) {
 			case webhook.TextMessageContent:
@@ -36,20 +50,6 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 					log.Println(err)
 					return
 				}
-			}
-		case webhook.FollowEvent:
-			if _, err = bot.ReplyMessage(
-				&messaging_api.ReplyMessageRequest{
-					ReplyToken: e.ReplyToken,
-					Messages: []messaging_api.MessageInterface{
-						&messaging_api.TextMessage{
-							Text: "友達追加ありがとう！",
-						},
-					},
-				},
-			); err != nil {
-				log.Println(err)
-				return
 			}
 		}
 	}
