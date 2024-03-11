@@ -7,6 +7,9 @@
     "ms-vscode.go",
     "ms-azuretools.vscode-docker",
   ],
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {}
+  },
   "settings": {
     "terminal.integrated.shell.linux": "/bin/bash"
   },
