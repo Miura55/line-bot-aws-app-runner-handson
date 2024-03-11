@@ -8,7 +8,8 @@
     "ms-azuretools.vscode-docker",
   ],
   "features": {
-    "ghcr.io/devcontainers/features/aws-cli:1": {}
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers-contrib/features/aws-cdk:1": {}
   },
   "settings": {
     "terminal.integrated.shell.linux": "/bin/bash"
