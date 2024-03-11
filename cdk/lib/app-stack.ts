@@ -47,6 +47,13 @@ export class AppStack extends cdk.Stack {
       instanceRole: instaceRole,
       serviceName: 'line-bot-hands-on',
       autoDeploymentsEnabled: true,
+      healthCheck: apprunner.HealthCheck.http({
+        path: '/health',
+        healthyThreshold: 5,
+        unhealthyThreshold: 10,
+        interval: cdk.Duration.seconds(10),
+        timeout: cdk.Duration.seconds(10),
+      }),
     })
 
     new cdk.CfnOutput(this, 'AppRunnerServiceUrl', {
