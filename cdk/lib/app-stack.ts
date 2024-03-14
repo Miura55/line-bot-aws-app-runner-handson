@@ -4,6 +4,7 @@ import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { Role, ServicePrincipal, ManagedPolicy } from 'aws-cdk-lib/aws-iam';
 import * as apprunner from '@aws-cdk/aws-apprunner-alpha';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import { Table, AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 
 interface AppStackProps extends cdk.StackProps {
   ecrRepository: Repository;
@@ -12,6 +13,21 @@ interface AppStackProps extends cdk.StackProps {
 export class AppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
+
+    const tableName = 'line-bot-hands-on-todo';
+    const dynamodbTable = new Table(this, 'LineBotHandsonTable', {
+      partitionKey: {
+        name: 'userId',
+        type: AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'timestamp',
+        type: AttributeType.STRING,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      tableName: tableName,
+    });
+    dynamodbTable.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
 
     const ecrAccessRole = new Role(this, 'EcrAccessRole', {
       assumedBy: new ServicePrincipal('build.apprunner.amazonaws.com'),
@@ -40,6 +56,9 @@ export class AppStack extends cdk.Stack {
           environmentSecrets: {
             CHANNEL_SECRET: apprunner.Secret.fromSecretsManager(Secret.fromSecretPartialArn(this, 'linebot-apprunner-handson/CHANNEL_SECRET', `arn:aws:ssm:ap-northeast-1:${this.account}:parameter/linebot-apprunner-handson/CHANNEL_SECRET`)),
             CHANNEL_TOKEN: apprunner.Secret.fromSecretsManager(Secret.fromSecretPartialArn(this, 'linebot-apprunner-handson/CHANNEL_TOKEN', `arn:aws:ssm:ap-northeast-1:${this.account}:parameter/linebot-apprunner-handson/CHANNEL_TOKEN`)),
+          },
+          environmentVariables: {
+            DYNAMODB_TABLE_NAME: tableName,
           }
         }
       }),
