@@ -9,7 +9,7 @@
   ],
   "features": {
     "ghcr.io/devcontainers/features/aws-cli:1": {},
-    "ghcr.io/devcontainers-contrib/features/aws-cdk:1": {}
+    "ghcr.io/devcontainers-contrib/features/aws-cdk:2.0.15": {}
   },
   "settings": {
     "terminal.integrated.shell.linux": "/bin/bash"
