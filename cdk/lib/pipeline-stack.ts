@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { StackProps, Stack } from 'aws-cdk-lib';
+import { StackProps, Stack, RemovalPolicy } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as codecommit from 'aws-cdk-lib/aws-codecommit';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
@@ -113,7 +113,9 @@ export class PipelineStack extends Stack {
     // S3バケットを作成
     const artifactBucket = new Bucket(this, 'ArtifactBucket', {
       bucketName: 'line-bot-hands-on-artifact',
+      removalPolicy: RemovalPolicy.DESTROY,
     });
+    artifactBucket.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     // CodePipelineを作成
     const pipeline = new Pipeline(this, 'Pipeline', {
