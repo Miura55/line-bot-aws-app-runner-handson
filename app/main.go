@@ -10,10 +10,17 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )
+
+type Todo struct {
+	UserId    string `dynamodbav:"userId"`
+	Timestamp string `dynamodbav:"timestamp"`
+	Text      string `dynamodbav:"text"`
+}
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Health check")
@@ -65,29 +72,31 @@ func todoController(userId string, text string) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
 	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
 	timestamp := time.Now().Format(time.DateTime)
 
-	item := &dynamodb.PutItemInput{
-		TableName: aws.String(tableName),
-		Item: map[string]*dynamodb.AttributeValue{
-			"userId": {
-				S: aws.String(userId),
-			},
-			"timestamp": {
-				S: aws.String(timestamp),
-			},
-			"text": {
-				S: aws.String(text),
-			},
-		},
+	item := Todo{
+		UserId:    userId,
+		Timestamp: timestamp,
+		Text:      text,
 	}
-	_, err = client.PutItem(context.TODO(), item)
+	av, err := attributevalue.MarshalMap(item)
 	if err != nil {
 		log.Fatal(err)
+		return
+	}
+
+	_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: aws.String(tableName),
+		Item:      av,
+	})
+	if err != nil {
+		log.Fatal(err)
+		return
 	}
 }
 
