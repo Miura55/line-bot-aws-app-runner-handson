@@ -22,6 +22,38 @@ type Todo struct {
 	Text      string `dynamodbav:"text"`
 }
 
+func todoController(userId string, text string) {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	client := dynamodb.NewFromConfig(cfg)
+	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
+	timestamp := time.Now().Format(time.DateTime)
+
+	item := Todo{
+		UserId:    userId,
+		Timestamp: timestamp,
+		Text:      text,
+	}
+	av, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: aws.String(tableName),
+		Item:      av,
+	})
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+}
+
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Health check")
 	w.WriteHeader(http.StatusOK)
@@ -65,38 +97,6 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 				}
 			}
 		}
-	}
-}
-
-func todoController(userId string, text string) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	client := dynamodb.NewFromConfig(cfg)
-	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
-	timestamp := time.Now().Format(time.DateTime)
-
-	item := Todo{
-		UserId:    userId,
-		Timestamp: timestamp,
-		Text:      text,
-	}
-	av, err := attributevalue.MarshalMap(item)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String(tableName),
-		Item:      av,
-	})
-	if err != nil {
-		log.Fatal(err)
-		return
 	}
 }
 
