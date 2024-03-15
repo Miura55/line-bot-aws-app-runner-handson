@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -22,7 +21,7 @@ type Todo struct {
 	Text      string `dynamodbav:"text"`
 }
 
-func todoController(userId string, text string) {
+func todoController(userId string, text string, timestamp int64) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatal(err)
@@ -31,11 +30,10 @@ func todoController(userId string, text string) {
 
 	client := dynamodb.NewFromConfig(cfg)
 	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
-	timestamp := time.Now().Format(time.DateTime)
 
 	item := Todo{
 		UserId:    userId,
-		Timestamp: timestamp,
+		Timestamp: fmt.Sprint(timestamp),
 		Text:      text,
 	}
 	av, err := attributevalue.MarshalMap(item)
@@ -82,6 +80,9 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 		case webhook.MessageEvent:
 			switch message := e.Message.(type) {
 			case webhook.TextMessageContent:
+				userId := message.Id
+				timestamp := e.Timestamp
+				todoController(userId, message.Text, timestamp)
 				if _, err = bot.ReplyMessage(
 					&messaging_api.ReplyMessageRequest{
 						ReplyToken: e.ReplyToken,
