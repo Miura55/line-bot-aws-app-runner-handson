@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )
@@ -53,6 +58,36 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 				}
 			}
 		}
+	}
+}
+
+func todoController(userId string, text string) {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := dynamodb.NewFromConfig(cfg)
+	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
+	timestamp := time.Now().Format(time.DateTime)
+
+	item := &dynamodb.PutItemInput{
+		TableName: aws.String(tableName),
+		Item: map[string]*dynamodb.AttributeValue{
+			"userId": {
+				S: aws.String(userId),
+			},
+			"timestamp": {
+				S: aws.String(timestamp),
+			},
+			"text": {
+				S: aws.String(text),
+			},
+		},
+	}
+	_, err = client.PutItem(context.TODO(), item)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
