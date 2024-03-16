@@ -96,13 +96,12 @@ func todoController(userId string, text string, timestamp int64) ([]messaging_ap
 			actions = append(actions, &messaging_api.PostbackAction{
 				Label: todoItem.Text,
 				Data:  todoItem.Timestamp,
-				Text:  todoItem.Text,
 			})
 		}
 		replyMessages = append(replyMessages, &messaging_api.TemplateMessage{
 			AltText: "タスク一覧",
 			Template: &messaging_api.ButtonsTemplate{
-				Text:    "タスク一覧",
+				Text:    "タスク一覧です。完了したタスクをタップすると削除されます。",
 				Actions: actions,
 			},
 		})
@@ -160,15 +159,7 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 			}
 		case webhook.MessageEvent:
 			// 送信元のIDを取得
-			sourceId := ""
-			switch s := e.Source.(type) {
-			case webhook.UserSource:
-				sourceId = s.UserId
-			case webhook.GroupSource:
-				sourceId = s.GroupId
-			case webhook.RoomSource:
-				sourceId = s.RoomId
-			}
+			sourceId := getSourceId(e.Source)
 			log.Printf("SourceId: %v", sourceId)
 
 			// メッセージの種類によって処理を分岐
@@ -198,6 +189,38 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 					return
 				}
 			}
+		case webhook.PostbackEvent:
+			// 送信元のIDを取得
+			sourceId := getSourceId(e.Source)
+			log.Printf("SourceId: %v", sourceId)
+
+			// 受け取ったデータを表示
+			if _, err = bot.ReplyMessage(
+				&messaging_api.ReplyMessageRequest{
+					ReplyToken: e.ReplyToken,
+					Messages: []messaging_api.MessageInterface{
+						&messaging_api.TextMessage{
+							Text: e.Postback.Data,
+						},
+					},
+				},
+			); err != nil {
+				log.Println(err)
+				return
+			}
 		}
+	}
+}
+
+func getSourceId(source webhook.SourceInterface) string {
+	switch s := source.(type) {
+	case webhook.UserSource:
+		return s.UserId
+	case webhook.GroupSource:
+		return s.GroupId
+	case webhook.RoomSource:
+		return s.RoomId
+	default:
+		return ""
 	}
 }
