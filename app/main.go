@@ -15,10 +15,14 @@ import (
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )
 
-type Todo struct {
+type TodoItem struct {
 	UserId    string `dynamodbav:"userId"`
 	Timestamp string `dynamodbav:"timestamp"`
 	Text      string `dynamodbav:"text"`
+}
+
+type TodoQuery struct {
+	UserId string `dynamodbav:":userId"`
 }
 
 func todoController(userId string, text string, timestamp int64) {
@@ -30,26 +34,62 @@ func todoController(userId string, text string, timestamp int64) {
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
-
-	item := Todo{
-		UserId:    userId,
-		Timestamp: fmt.Sprint(timestamp),
-		Text:      text,
-	}
-	av, err := attributevalue.MarshalMap(item)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
 	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
-	_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String(tableName),
-		Item:      av,
-	})
-	if err != nil {
-		log.Fatal(err)
-		return
+
+	switch text {
+	case "list":
+		query := TodoQuery{
+			UserId: userId,
+		}
+		av, err := attributevalue.MarshalMap(query)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		result, err := client.Query(context.TODO(), &dynamodb.QueryInput{
+			TableName:              aws.String(tableName),
+			KeyConditionExpression: aws.String("#userId = :userId"),
+			ExpressionAttributeNames: map[string]string{
+				"#userId": *aws.String("userId"),
+			},
+			ExpressionAttributeValues: av,
+		})
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		for _, item := range result.Items {
+			var todoItem TodoItem
+			err = attributevalue.UnmarshalMap(item, &todoItem)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+			log.Println(todoItem)
+		}
+	default:
+
+		item := TodoItem{
+			UserId:    userId,
+			Timestamp: fmt.Sprint(timestamp),
+			Text:      text,
+		}
+		av, err := attributevalue.MarshalMap(item)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+			TableName: aws.String(tableName),
+			Item:      av,
+		})
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
 	}
 }
 
