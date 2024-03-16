@@ -22,14 +22,14 @@ type Todo struct {
 }
 
 func todoController(userId string, text string, timestamp int64) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	region := os.Getenv("AWS_REGION")
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
-	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
 
 	item := Todo{
 		UserId:    userId,
@@ -42,6 +42,7 @@ func todoController(userId string, text string, timestamp int64) {
 		return
 	}
 
+	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
 	_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: aws.String(tableName),
 		Item:      av,
