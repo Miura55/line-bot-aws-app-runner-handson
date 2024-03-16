@@ -25,17 +25,18 @@ type TodoQuery struct {
 	UserId string `dynamodbav:":userId"`
 }
 
-func todoController(userId string, text string, timestamp int64) {
+func todoController(userId string, text string, timestamp int64) (messaging_api.TextMessage, error) {
 	region := os.Getenv("AWS_REGION")
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
 		log.Fatal(err)
-		return
+		return messaging_api.TextMessage{}, err
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
 	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
 
+	replyMessage := messaging_api.TextMessage{}
 	switch text {
 	case "list":
 		query := TodoQuery{
@@ -44,7 +45,7 @@ func todoController(userId string, text string, timestamp int64) {
 		av, err := attributevalue.MarshalMap(query)
 		if err != nil {
 			log.Fatal(err)
-			return
+			return replyMessage, err
 		}
 
 		result, err := client.Query(context.TODO(), &dynamodb.QueryInput{
@@ -57,7 +58,7 @@ func todoController(userId string, text string, timestamp int64) {
 		})
 		if err != nil {
 			log.Fatal(err)
-			return
+			return replyMessage, err
 		}
 
 		for _, item := range result.Items {
@@ -65,12 +66,11 @@ func todoController(userId string, text string, timestamp int64) {
 			err = attributevalue.UnmarshalMap(item, &todoItem)
 			if err != nil {
 				log.Fatal(err)
-				return
+				return replyMessage, err
 			}
 			log.Println(todoItem)
 		}
 	default:
-
 		item := TodoItem{
 			UserId:    userId,
 			Timestamp: fmt.Sprint(timestamp),
@@ -79,7 +79,7 @@ func todoController(userId string, text string, timestamp int64) {
 		av, err := attributevalue.MarshalMap(item)
 		if err != nil {
 			log.Fatal(err)
-			return
+			return replyMessage, err
 		}
 
 		_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
@@ -88,9 +88,11 @@ func todoController(userId string, text string, timestamp int64) {
 		})
 		if err != nil {
 			log.Fatal(err)
-			return
+			return replyMessage, err
 		}
+		replyMessage.Text = "登録しました"
 	}
+	return replyMessage, nil
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -119,18 +121,36 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 				return
 			}
 		case webhook.MessageEvent:
+			// 送信元のIDを取得
+			sourceId := ""
+			switch s := e.Source.(type) {
+			case webhook.UserSource:
+				sourceId = s.UserId
+			case webhook.GroupSource:
+				sourceId = s.GroupId
+			case webhook.RoomSource:
+				sourceId = s.RoomId
+			}
+			log.Printf("SourceId: %v", sourceId)
+
+			// メッセージの種類によって処理を分岐
 			switch message := e.Message.(type) {
 			case webhook.TextMessageContent:
-				userId := message.Id
+				replyMessage := messaging_api.TextMessage{
+					Text: message.Text,
+				}
 				timestamp := e.Timestamp
-				todoController(userId, message.Text, timestamp)
+				replyMessage, err = todoController(sourceId, message.Text, timestamp)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
 				if _, err = bot.ReplyMessage(
 					&messaging_api.ReplyMessageRequest{
 						ReplyToken: e.ReplyToken,
 						Messages: []messaging_api.MessageInterface{
-							&messaging_api.TextMessage{
-								Text: message.Text,
-							},
+							&replyMessage,
 						},
 					},
 				); err != nil {
