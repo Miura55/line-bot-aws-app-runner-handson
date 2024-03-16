@@ -58,6 +58,7 @@ export class AppStack extends cdk.Stack {
             CHANNEL_TOKEN: apprunner.Secret.fromSecretsManager(Secret.fromSecretPartialArn(this, 'linebot-apprunner-handson/CHANNEL_TOKEN', `arn:aws:ssm:ap-northeast-1:${this.account}:parameter/linebot-apprunner-handson/CHANNEL_TOKEN`)),
           },
           environmentVariables: {
+            AWS_REGION: this.region,
             DYNAMODB_TABLE_NAME: tableName,
           }
         }
