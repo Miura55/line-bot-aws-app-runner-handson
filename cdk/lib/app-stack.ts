@@ -29,6 +29,17 @@ export class AppStack extends cdk.Stack {
     });
     dynamodbTable.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
 
+    const instaceRole = new Role(this, 'InstanceRole', {
+      assumedBy: new ServicePrincipal('tasks.apprunner.amazonaws.com'),
+      roleName: 'HandsonAppRunnerInstanceRole',
+    });
+
+    dynamodbTable.grantReadWriteData(instaceRole);
+
+    instaceRole.addManagedPolicy(
+      ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMReadOnlyAccess')
+    );
+
     const ecrAccessRole = new Role(this, 'EcrAccessRole', {
       assumedBy: new ServicePrincipal('build.apprunner.amazonaws.com'),
       roleName: 'HandsonAppRunnerECRAccessRole',
@@ -36,15 +47,6 @@ export class AppStack extends cdk.Stack {
 
     ecrAccessRole.addManagedPolicy(
       ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSAppRunnerServicePolicyForECRAccess')
-    );
-
-    const instaceRole = new Role(this, 'InstanceRole', {
-      assumedBy: new ServicePrincipal('tasks.apprunner.amazonaws.com'),
-      roleName: 'HandsonAppRunnerInstanceRole',
-    });
-
-    instaceRole.addManagedPolicy(
-      ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMReadOnlyAccess')
     );
 
     const apprunnerService = new apprunner.Service(this, 'AppRunnerService', {
