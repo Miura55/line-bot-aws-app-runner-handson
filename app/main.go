@@ -84,6 +84,7 @@ func todoController(userId string, text string, timestamp int64) ([]messaging_ap
 			return replyMessages, err
 		}
 
+		actions := []messaging_api.ActionInterface{}
 		for _, item := range result.Items {
 			var todoItem TodoItem
 			err = attributevalue.UnmarshalMap(item, &todoItem)
@@ -92,7 +93,19 @@ func todoController(userId string, text string, timestamp int64) ([]messaging_ap
 				return replyMessages, err
 			}
 			log.Println(todoItem)
+			actions = append(actions, &messaging_api.PostbackAction{
+				Label: todoItem.Text,
+				Data:  todoItem.Timestamp,
+				Text:  todoItem.Text,
+			})
 		}
+		replyMessages = append(replyMessages, &messaging_api.TemplateMessage{
+			AltText: "タスク一覧",
+			Template: &messaging_api.ButtonsTemplate{
+				Text:    "タスク一覧",
+				Actions: actions,
+			},
+		})
 	default:
 		item := TodoItem{
 			UserId:    userId,
