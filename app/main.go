@@ -25,6 +25,11 @@ type TodoQuery struct {
 	UserId string `dynamodbav:":userId"`
 }
 
+type TodoKey struct {
+	UserId    string `dynamodbav:"userId"`
+	Timestamp string `dynamodbav:"timestamp"`
+}
+
 func main() {
 	handler, err := webhook.NewWebhookHandler(os.Getenv("CHANNEL_SECRET"))
 	if err != nil {
@@ -48,7 +53,7 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func todoController(userId string, text string, timestamp int64) ([]messaging_api.MessageInterface, error) {
+func todoController(userId string, timestamp string, text ...string) ([]messaging_api.MessageInterface, error) {
 	region := os.Getenv("AWS_REGION")
 	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
 	replyMessages := []messaging_api.MessageInterface{}
@@ -60,75 +65,110 @@ func todoController(userId string, text string, timestamp int64) ([]messaging_ap
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
-	switch text {
-	case "list":
-		query := TodoQuery{
-			UserId: userId,
-		}
-		av, err := attributevalue.MarshalMap(query)
-		if err != nil {
-			log.Fatal(err)
-			return replyMessages, err
-		}
 
-		result, err := client.Query(context.TODO(), &dynamodb.QueryInput{
-			TableName:              aws.String(tableName),
-			KeyConditionExpression: aws.String("#userId = :userId"),
-			ExpressionAttributeNames: map[string]string{
-				"#userId": *aws.String("userId"),
-			},
-			ExpressionAttributeValues: av,
-		})
-		if err != nil {
-			log.Fatal(err)
-			return replyMessages, err
-		}
-
-		actions := []messaging_api.ActionInterface{}
-		for _, item := range result.Items {
-			var todoItem TodoItem
-			err = attributevalue.UnmarshalMap(item, &todoItem)
-			if err != nil {
-				log.Fatal(err)
-				return replyMessages, err
-			}
-			log.Println(todoItem)
-			actions = append(actions, &messaging_api.PostbackAction{
-				Label: todoItem.Text,
-				Data:  todoItem.Timestamp,
-			})
-		}
-		replyMessages = append(replyMessages, &messaging_api.TemplateMessage{
-			AltText: "タスク一覧",
-			Template: &messaging_api.ButtonsTemplate{
-				Text:    "タスク一覧です。完了したタスクをタップすると削除されます。",
-				Actions: actions,
-			},
-		})
-	default:
-		item := TodoItem{
+	// 削除処理を実行
+	if text == nil {
+		key := TodoKey{
 			UserId:    userId,
-			Timestamp: fmt.Sprint(timestamp),
-			Text:      text,
+			Timestamp: timestamp,
 		}
-		av, err := attributevalue.MarshalMap(item)
+		av, err := attributevalue.MarshalMap(key)
 		if err != nil {
 			log.Fatal(err)
 			return replyMessages, err
 		}
-
-		_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		_, err = client.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
 			TableName: aws.String(tableName),
-			Item:      av,
+			Key:       av,
 		})
 		if err != nil {
 			log.Fatal(err)
 			return replyMessages, err
 		}
 		replyMessages = append(replyMessages, &messaging_api.TextMessage{
-			Text: "登録しました",
+			Text: "削除しました",
 		})
+	} else {
+		// メッセージの種類によって処理を分岐
+		textMessage := text[0]
+		switch textMessage {
+		case "list":
+			query := TodoQuery{
+				UserId: userId,
+			}
+			av, err := attributevalue.MarshalMap(query)
+			if err != nil {
+				log.Fatal(err)
+				return replyMessages, err
+			}
+
+			result, err := client.Query(context.TODO(), &dynamodb.QueryInput{
+				TableName:              aws.String(tableName),
+				KeyConditionExpression: aws.String("#userId = :userId"),
+				ExpressionAttributeNames: map[string]string{
+					"#userId": *aws.String("userId"),
+				},
+				ExpressionAttributeValues: av,
+			})
+			if err != nil {
+				log.Fatal(err)
+				return replyMessages, err
+			}
+
+			actions := []messaging_api.ActionInterface{}
+			if len(result.Items) == 0 {
+				replyMessages = append(replyMessages, &messaging_api.TextMessage{
+					Text: "タスクはありません",
+				})
+				return replyMessages, nil
+			}
+
+			for _, item := range result.Items {
+				var todoItem TodoItem
+				err = attributevalue.UnmarshalMap(item, &todoItem)
+				if err != nil {
+					log.Fatal(err)
+					return replyMessages, err
+				}
+				log.Println(todoItem)
+				actions = append(actions, &messaging_api.PostbackAction{
+					Label: todoItem.Text,
+					Data:  todoItem.Timestamp,
+				})
+			}
+			replyMessages = append(replyMessages, &messaging_api.TemplateMessage{
+				AltText: "タスク一覧",
+				Template: &messaging_api.ButtonsTemplate{
+					Text:    "タスク一覧です。完了したタスクをタップすると削除されます。",
+					Actions: actions,
+				},
+			})
+		default:
+			item := TodoItem{
+				UserId:    userId,
+				Timestamp: timestamp,
+				Text:      textMessage,
+			}
+			av, err := attributevalue.MarshalMap(item)
+			if err != nil {
+				log.Fatal(err)
+				return replyMessages, err
+			}
+
+			_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+				TableName: aws.String(tableName),
+				Item:      av,
+			})
+			if err != nil {
+				log.Fatal(err)
+				return replyMessages, err
+			}
+			replyMessages = append(replyMessages, &messaging_api.TextMessage{
+				Text: "登録しました",
+			})
+		}
 	}
+
 	return replyMessages, nil
 }
 
@@ -173,7 +213,7 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 
 				// TODO: ハンズオン前にコメントアウトする
 				timestamp := e.Timestamp
-				replyMessages, err = todoController(sourceId, message.Text, timestamp)
+				replyMessages, err = todoController(sourceId, fmt.Sprint(timestamp), message.Text)
 				if err != nil {
 					log.Println(err)
 					return
@@ -195,14 +235,16 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 			log.Printf("SourceId: %v", sourceId)
 
 			// 受け取ったデータを表示
+			replyMessages, err := todoController(sourceId, e.Postback.Data)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
 			if _, err = bot.ReplyMessage(
 				&messaging_api.ReplyMessageRequest{
 					ReplyToken: e.ReplyToken,
-					Messages: []messaging_api.MessageInterface{
-						&messaging_api.TextMessage{
-							Text: e.Postback.Data,
-						},
-					},
+					Messages:   replyMessages,
 				},
 			); err != nil {
 				log.Println(err)
