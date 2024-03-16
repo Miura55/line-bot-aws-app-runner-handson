@@ -25,6 +25,29 @@ type TodoQuery struct {
 	UserId string `dynamodbav:":userId"`
 }
 
+func main() {
+	handler, err := webhook.NewWebhookHandler(os.Getenv("CHANNEL_SECRET"))
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	bot, err := messaging_api.NewMessagingApiAPI(os.Getenv("CHANNEL_TOKEN"))
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	handler.HandleEvents(func(req *webhook.CallbackRequest, r *http.Request) {
+		eventHandler(req, r, bot, err)
+	})
+
+	http.HandleFunc("/health", healthHandler)
+	http.Handle("/callback", handler)
+	fmt.Println("Server is running...:8080")
+	http.ListenAndServe(":8080", nil)
+}
+
 func todoController(userId string, text string, timestamp int64) (messaging_api.TextMessage, error) {
 	region := os.Getenv("AWS_REGION")
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
@@ -160,27 +183,4 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 			}
 		}
 	}
-}
-
-func main() {
-	handler, err := webhook.NewWebhookHandler(os.Getenv("CHANNEL_SECRET"))
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	bot, err := messaging_api.NewMessagingApiAPI(os.Getenv("CHANNEL_TOKEN"))
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	handler.HandleEvents(func(req *webhook.CallbackRequest, r *http.Request) {
-		eventHandler(req, r, bot, err)
-	})
-
-	http.HandleFunc("/health", healthHandler)
-	http.Handle("/callback", handler)
-	fmt.Println("Server is running...:8080")
-	http.ListenAndServe(":8080", nil)
 }
