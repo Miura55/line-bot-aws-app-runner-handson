@@ -48,18 +48,18 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func todoController(userId string, text string, timestamp int64) (messaging_api.TextMessage, error) {
+func todoController(userId string, text string, timestamp int64) ([]messaging_api.MessageInterface, error) {
 	region := os.Getenv("AWS_REGION")
+	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
+	replyMessages := []messaging_api.MessageInterface{}
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
 		log.Fatal(err)
-		return messaging_api.TextMessage{}, err
+		return replyMessages, err
 	}
 
 	client := dynamodb.NewFromConfig(cfg)
-	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
-
-	replyMessage := messaging_api.TextMessage{}
 	switch text {
 	case "list":
 		query := TodoQuery{
@@ -68,7 +68,7 @@ func todoController(userId string, text string, timestamp int64) (messaging_api.
 		av, err := attributevalue.MarshalMap(query)
 		if err != nil {
 			log.Fatal(err)
-			return replyMessage, err
+			return replyMessages, err
 		}
 
 		result, err := client.Query(context.TODO(), &dynamodb.QueryInput{
@@ -81,7 +81,7 @@ func todoController(userId string, text string, timestamp int64) (messaging_api.
 		})
 		if err != nil {
 			log.Fatal(err)
-			return replyMessage, err
+			return replyMessages, err
 		}
 
 		for _, item := range result.Items {
@@ -89,7 +89,7 @@ func todoController(userId string, text string, timestamp int64) (messaging_api.
 			err = attributevalue.UnmarshalMap(item, &todoItem)
 			if err != nil {
 				log.Fatal(err)
-				return replyMessage, err
+				return replyMessages, err
 			}
 			log.Println(todoItem)
 		}
@@ -102,7 +102,7 @@ func todoController(userId string, text string, timestamp int64) (messaging_api.
 		av, err := attributevalue.MarshalMap(item)
 		if err != nil {
 			log.Fatal(err)
-			return replyMessage, err
+			return replyMessages, err
 		}
 
 		_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
@@ -111,11 +111,13 @@ func todoController(userId string, text string, timestamp int64) (messaging_api.
 		})
 		if err != nil {
 			log.Fatal(err)
-			return replyMessage, err
+			return replyMessages, err
 		}
-		replyMessage.Text = "登録しました"
+		replyMessages = append(replyMessages, &messaging_api.TextMessage{
+			Text: "登録しました",
+		})
 	}
-	return replyMessage, nil
+	return replyMessages, nil
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -159,11 +161,15 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 			// メッセージの種類によって処理を分岐
 			switch message := e.Message.(type) {
 			case webhook.TextMessageContent:
-				replyMessage := messaging_api.TextMessage{
-					Text: message.Text,
+				replyMessages := []messaging_api.MessageInterface{
+					&messaging_api.TextMessage{
+						Text: message.Text,
+					},
 				}
+
+				// TODO: ハンズオン前にコメントアウトする
 				timestamp := e.Timestamp
-				replyMessage, err = todoController(sourceId, message.Text, timestamp)
+				replyMessages, err = todoController(sourceId, message.Text, timestamp)
 				if err != nil {
 					log.Println(err)
 					return
@@ -172,9 +178,7 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 				if _, err = bot.ReplyMessage(
 					&messaging_api.ReplyMessageRequest{
 						ReplyToken: e.ReplyToken,
-						Messages: []messaging_api.MessageInterface{
-							&replyMessage,
-						},
+						Messages:   replyMessages,
 					},
 				); err != nil {
 					log.Println(err)
