@@ -1,4 +1,4 @@
-import * as cdk from 'aws-cdk-lib';
+import { Stack, StackProps, RemovalPolicy, CfnOutput, Duration } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { Role, ServicePrincipal, ManagedPolicy } from 'aws-cdk-lib/aws-iam';
@@ -6,11 +6,11 @@ import * as apprunner from '@aws-cdk/aws-apprunner-alpha';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Table, AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 
-interface AppStackProps extends cdk.StackProps {
+interface AppStackProps extends StackProps {
   ecrRepository: Repository;
 }
 
-export class AppStack extends cdk.Stack {
+export class AppStack extends Stack {
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
 
@@ -24,10 +24,10 @@ export class AppStack extends cdk.Stack {
         name: 'timestamp',
         type: AttributeType.STRING,
       },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: RemovalPolicy.DESTROY,
       tableName: tableName,
     });
-    dynamodbTable.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
+    dynamodbTable.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     const instaceRole = new Role(this, 'InstanceRole', {
       assumedBy: new ServicePrincipal('tasks.apprunner.amazonaws.com'),
@@ -73,12 +73,12 @@ export class AppStack extends cdk.Stack {
         path: '/health',
         healthyThreshold: 5,
         unhealthyThreshold: 10,
-        interval: cdk.Duration.seconds(10),
-        timeout: cdk.Duration.seconds(10),
+        interval: Duration.seconds(10),
+        timeout: Duration.seconds(10),
       }),
     })
 
-    new cdk.CfnOutput(this, 'AppRunnerServiceUrl', {
+    new CfnOutput(this, 'AppRunnerServiceUrl', {
       value: apprunnerService.serviceUrl!,
     });
   }
