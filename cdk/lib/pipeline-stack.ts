@@ -21,10 +21,6 @@ export class PipelineStack extends Stack {
     // CodeCommitのレポジトリを作成
     const repository = new codecommit.Repository(this, 'Repository', {
       repositoryName: 'line-bot-hands-on',
-      code: codecommit.Code.fromDirectory(
-        path.join(__dirname, '../../app'),
-        'main'
-      )
     });
 
     // LogGroupを作成
