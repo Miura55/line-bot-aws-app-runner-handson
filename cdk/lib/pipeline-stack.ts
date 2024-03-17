@@ -30,7 +30,9 @@ export class PipelineStack extends Stack {
     // LogGroupを作成
     const logGroup = new LogGroup(this, 'LogGroup', {
       logGroupName: '/aws/codebuild/line-bot-hand/apps-on',
+      removalPolicy: RemovalPolicy.DESTROY,
     });
+    logGroup.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     // CodeBuildのプロジェクトを作成
     const codeBuildProject = new Project(this, 'CodeBuildProject', {
@@ -112,8 +114,8 @@ export class PipelineStack extends Stack {
 
     // S3バケットを作成
     const artifactBucket = new Bucket(this, 'ArtifactBucket', {
-      bucketName: 'line-bot-hands-on-artifact',
       removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
     });
     artifactBucket.applyRemovalPolicy(RemovalPolicy.DESTROY);
 

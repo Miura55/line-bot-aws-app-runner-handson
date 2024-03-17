@@ -10,6 +10,9 @@ export class DeployStack extends cdk.Stack {
 
     this.ecrRepository = new Repository(this, 'EcrRepository', {
       repositoryName: 'line-bot-hands-on',
+      autoDeleteImages: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+    this.ecrRepository.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
   }
 }
