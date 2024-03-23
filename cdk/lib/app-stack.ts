@@ -11,8 +11,6 @@ interface AppStackProps extends StackProps {
 }
 
 export class AppStack extends Stack {
-  public readonly instanceRole: Role;
-
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
 
@@ -56,7 +54,7 @@ export class AppStack extends Stack {
         }
       }),
       accessRole: ecrAccessRole,
-      instanceRole: this.instanceRole,
+      instanceRole: instanceRole,
       serviceName: 'line-bot-hands-on',
       autoDeploymentsEnabled: true,
       healthCheck: apprunner.HealthCheck.http({
