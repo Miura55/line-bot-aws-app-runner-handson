@@ -211,13 +211,13 @@ func eventHandler(req *webhook.CallbackRequest, r *http.Request, bot *messaging_
 					},
 				}
 
-				// TODO: ハンズオン前にコメントアウトする
-				timestamp := e.Timestamp
-				replyMessages, err = todoController(sourceId, fmt.Sprint(timestamp), message.Text)
-				if err != nil {
-					log.Println(err)
-					return
-				}
+				// TodoリストのCRUD処理を実行
+				// timestamp := e.Timestamp
+				// replyMessages, err = todoController(sourceId, fmt.Sprint(timestamp), message.Text)
+				// if err != nil {
+				// 	log.Println(err)
+				// 	return
+				// }
 
 				if _, err = bot.ReplyMessage(
 					&messaging_api.ReplyMessageRequest{
