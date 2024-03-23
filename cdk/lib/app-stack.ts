@@ -4,39 +4,24 @@ import { Repository } from 'aws-cdk-lib/aws-ecr';
 import { Role, ServicePrincipal, ManagedPolicy } from 'aws-cdk-lib/aws-iam';
 import * as apprunner from '@aws-cdk/aws-apprunner-alpha';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
-import { Table, AttributeType } from 'aws-cdk-lib/aws-dynamodb';
 
 interface AppStackProps extends StackProps {
+  tableName: string;
   ecrRepository: Repository;
 }
 
 export class AppStack extends Stack {
+  public readonly instanceRole: Role;
+
   constructor(scope: Construct, id: string, props: AppStackProps) {
     super(scope, id, props);
 
-    const tableName = 'line-bot-hands-on-todo';
-    const dynamodbTable = new Table(this, 'LineBotHandsonTable', {
-      partitionKey: {
-        name: 'userId',
-        type: AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'timestamp',
-        type: AttributeType.STRING,
-      },
-      removalPolicy: RemovalPolicy.DESTROY,
-      tableName: tableName,
-    });
-    dynamodbTable.applyRemovalPolicy(RemovalPolicy.DESTROY);
-
-    const instaceRole = new Role(this, 'InstanceRole', {
+    this.instanceRole = new Role(this, 'InstanceRole', {
       assumedBy: new ServicePrincipal('tasks.apprunner.amazonaws.com'),
       roleName: 'HandsonAppRunnerInstanceRole',
     });
 
-    dynamodbTable.grantReadWriteData(instaceRole);
-
-    instaceRole.addManagedPolicy(
+    this.instanceRole.addManagedPolicy(
       ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMReadOnlyAccess')
     );
 
@@ -61,12 +46,12 @@ export class AppStack extends Stack {
           },
           environmentVariables: {
             AWS_REGION: this.region,
-            DYNAMODB_TABLE_NAME: tableName,
+            DYNAMODB_TABLE_NAME: props.tableName,
           }
         }
       }),
       accessRole: ecrAccessRole,
-      instanceRole: instaceRole,
+      instanceRole: this.instanceRole,
       serviceName: 'line-bot-hands-on',
       autoDeploymentsEnabled: true,
       healthCheck: apprunner.HealthCheck.http({
@@ -76,10 +61,10 @@ export class AppStack extends Stack {
         interval: Duration.seconds(10),
         timeout: Duration.seconds(10),
       }),
-    })
+    });
 
     new CfnOutput(this, 'AppRunnerServiceUrl', {
-      value: apprunnerService.serviceUrl!,
+      value: `https://${apprunnerService.serviceUrl}`,
     });
   }
 }

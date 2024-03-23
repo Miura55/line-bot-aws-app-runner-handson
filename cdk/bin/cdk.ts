@@ -4,28 +4,42 @@ import * as cdk from 'aws-cdk-lib';
 import { AppStack } from '../lib/app-stack';
 import { DeployStack } from '../lib/deploy-stack';
 import { PipelineStack } from '../lib/pipeline-stack';
+import { DatabaseStack } from '../lib/database-stack';
+
+const region = 'ap-northeast-1';
+const dynamoTableName = 'line-bot-hands-on-table';
 
 const app = new cdk.App();
 
 const deployStack = new DeployStack(app, 'HandsonDeployStack', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: 'ap-northeast-1',
+    region: region,
   },
 });
 
-new AppStack(app, 'HandsonAppStack', {
+const appStack = new AppStack(app, 'HandsonAppStack', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: 'ap-northeast-1',
+    region: region,
   },
+  tableName: dynamoTableName,
   ecrRepository: deployStack.ecrRepository,
 });
 
 new PipelineStack(app, 'HandsonPipelineStack', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: 'ap-northeast-1',
+    region: region,
   },
   ecrRepository: deployStack.ecrRepository,
+});
+
+new DatabaseStack(app, 'HandsonDatabaseStack', {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: region,
+  },
+  tableName: dynamoTableName,
+  appRunnerInstanceRole: appStack.instanceRole,
 });
