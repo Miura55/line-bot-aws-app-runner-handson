@@ -19,7 +19,8 @@ export class PipelineStack extends Stack {
 
     // CodeCommitのレポジトリを作成
     const repository = new codecommit.Repository(this, 'Repository', {
-      repositoryName: 'line-bot-hands-on',
+      repositoryName: `line-bot-hands-on-${id}`,
+      description: 'LINE botハンズオンのCI/CDを実施するためのCodeCommitリポジトリ',
     });
 
     // LogGroupを作成
@@ -32,7 +33,7 @@ export class PipelineStack extends Stack {
     // CodeBuildのプロジェクトを作成
     const codeBuildProject = new Project(this, 'CodeBuildProject', {
       projectName: 'line-bot-hands-on',
-      source: Source.codeCommit({ 
+      source: Source.codeCommit({
         repository: repository,
       }),
       environment: {
@@ -90,7 +91,7 @@ export class PipelineStack extends Stack {
         },
       }),
     });
-    
+
     // ECRにアクセスするためのIAMポリシーを作成
     const ecrPolicy = new PolicyStatement({
       actions: [
@@ -103,7 +104,7 @@ export class PipelineStack extends Stack {
       ],
       resources: ['*'],
     });
-    
+
     // CodeBuildにECRのポリシーをアタッチ
     codeBuildProject.addToRolePolicy(ecrPolicy);
 
@@ -134,7 +135,7 @@ export class PipelineStack extends Stack {
       stageName: 'Source',
       actions: [sourceAction],
     });
-    
+
     // buildステージを追加
     const buildOutput = new Artifact();
     const buildAction = new CodeBuildAction({
