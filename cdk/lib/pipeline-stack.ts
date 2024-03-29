@@ -19,7 +19,7 @@ export class PipelineStack extends Stack {
 
     // CodeCommitのレポジトリを作成
     const repository = new codecommit.Repository(this, 'Repository', {
-      repositoryName: `line-bot-hands-on-${id}`,
+      repositoryName: `line-bot-hands-on-${this.account}`,
       description: 'LINE botハンズオンのCI/CDを実施するためのCodeCommitリポジトリ',
     });
 
