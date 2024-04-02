@@ -9,7 +9,7 @@ export class DeployStack extends Stack {
     super(scope, id, props);
 
     this.ecrRepository = new Repository(this, 'EcrRepository', {
-      repositoryName: `line-bot-hands-on-${this.account}`,
+      repositoryName: 'line-bot-hands-on',
       autoDeleteImages: true,
       removalPolicy: RemovalPolicy.DESTROY,
     });
